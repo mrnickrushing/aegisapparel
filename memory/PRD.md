@@ -1,53 +1,64 @@
-# A Yard Apparel — Product Requirements Document
+# AEGIS — Strength in Order
 
-## Original Problem Statement
-> "I need you to make a new github git and im trying to build a webpage for a clothing line business that is for law enforcement, but more specifically CDCR. Here is two pictures of stickers that were made. They are stickers that were made for officers at Mule Creek State Prison on A yard which is a level 4 yard that has been rough with lots of attempted murders and stabbings and code 2 and code 3 riots. we are making this clothing line to get some comradery on the yard with the officers. i need a FULL BLOWN WEBSITE that stays with the awesome theme of these stickers. I want to be able to order from the website as well. I really need the page to be VISUALLY STUNNING AND AMAZING. This is the first website i will be building and selling for my business so it needs to be completely laced up and amazing."
-
-## User Choices (gathered Feb 2026)
-- **Brand name**: A Yard Apparel
-- **Product types**: T-shirts, Hoodies, Hats, Beanies, Stickers, Patches, Challenge Coins, Tumblers
-- **Payments**: Both — Stripe checkout + manual reserve flow
-- **Crests / designs to feature**: Dumpster Fire Response Team (A Yard custody), Mental Health Team, B Yard, C Yard, D Yard, E Yard, ISU, Control Booths, A Yard Medical, TTA, Yard Clinics
-- **GitHub repo**: `mrnickrushing/A-Yard-Apparel.git` (user owns it; project is push-ready)
+## Brand
+- **Name**: AEGIS
+- **Tagline**: Strength in Order
+- **Hero copy**: "Built through adversity. Forged through leadership."
+- **Origin tag**: "Built by the line. For the line."
+- **Mission**: More than a brand. It's a mindset. It's a way of life. Identity, belonging, earning your place.
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind + Shadcn UI, react-router-dom 7
+- **Frontend**: React 19 + Tailwind + Shadcn UI, react-router-dom 7, framer-motion-style CSS animations
 - **Backend**: FastAPI + Motor (MongoDB) + emergentintegrations Stripe Checkout
-- **DB**: MongoDB (products, orders, payment_transactions, newsletter)
-- **Payment**: Stripe (sk_test_emergent test key) + manual "Reserve" flow
-- **Design system**: Gritty tactical / military aesthetic — gunmetal dark palette, fire orange (#FF4500) & purple (#8B5FBF) accents, Anton display font, IBM Plex Mono labels, grain texture, sharp 1px borders, no border-radius.
+- **Auth**: None — guest checkout only (no accounts in v1)
+- **Payments**: Stripe live (test key `sk_test_emergent` for dev) + manual "Reserve" flow
+- **Seed system**: SEED_VERSION bump drops + reseeds products & campaigns
 
-## Personas
-1. **Active CDCR officer (primary)**: works the line at MCSP or another yard, wants gear that reps their unit/crest with respect & pride. Mobile-first, in-out browsing.
-2. **Retired officer / supporter**: buying as a gift or memento. Wants quality + story.
-3. **Clinician / medical staff**: Mental Health Team, TTA, A Yard Medical. Wants designs that honor their role.
+## Divisions (data model)
+1. **CORE** — public, purchasable, steel-blue accent (#4A7FC1)
+   - Tactical White Tee · Tactical Black Tee · CORE Hoodie · CORE Flexfit Cap
+2. **LEGACY** — award-only, gold accent (#D4AF37)
+   - Foundation Piece (numbered) · Dumpster Fire Patch · Mental Health Patch · A-Yard Legacy Sticker · Mental Health Legacy Sticker
+   - Unlocked via redeem codes (`AYARD-MCSP-2024`, `MHT-CLINICIAN-2024`, `FOUNDATION-001`, `BUILT-ON-DISCIPLINE`)
 
-## Implemented (Feb 2026 — Day 1)
-- ✅ Full backend (server.py): products, filters, single product, checkout/quote, checkout/session (Stripe), checkout/status, webhook/stripe, manual orders, newsletter, auto-seeding of 88 products (11 designs × 8 categories).
-- ✅ Home (hero, marquee, bento featured crests, featured products, units grid, value props, CTA)
-- ✅ Shop with filters (category, crest, unit) + URL-state filters
-- ✅ Product detail with size/color/qty + add-to-cart + buy-now
-- ✅ Cart drawer with localStorage persistence
-- ✅ Checkout (Stripe + manual reserve), Success page with polling
-- ✅ About / Story page
-- ✅ Header (with mobile menu), Footer (newsletter + social), Toaster
-- ✅ Tactical theme: Anton display font, grain, brushed metal, corners, marquee, tactical stripes
-- ✅ Two original sticker images converted from HEIC → PNG, rendered prominently in bento + product cards
-- ✅ 100% E2E backend + frontend tests passing
+## Campaigns (mission files)
+- **001 A-YARD** — Mule Creek Five Buildings / One Mission (active, gold)
+- **002 EOP** — Mental Health × Custody (active, red)
+- **003 BUILDING 5** — The Standard Lives Here (active, green)
+- **004 LOCKED** — coming soon
+- **005 CLASSIFIED** — redacted
+
+## Routes
+- `/` — Splash gate (video-game boot sequence + ENTER button)
+- `/home` — main landing
+- `/core` — Core Division catalog
+- `/legacy` — Legacy Division manifest + redeem + petition
+- `/campaigns` / `/campaigns/:slug` — mission files
+- `/product/:slug` — product detail (with legacy unlock flow if award-only)
+- `/checkout`, `/success`
+- `/logbook` — field records
+- `/contact` — comms form
+
+## Implemented (Feb 2026 — v1)
+- Splash gate with boot sequence + animated ENTER button
+- AEGIS rebrand: Cinzel display font, etched gold + steel-blue theme, antique HUD aesthetic
+- Two-division architecture (CORE / LEGACY) with separate visuals & data
+- Legacy redeem code system (POST /api/legacy/redeem) with localStorage persistence + petition form
+- Campaigns system with 5 cards (active / locked / classified states)
+- Product detail with size/color/qty, award-only gating, redeem inline
+- Cart + Stripe + Manual order checkout (re-themed gold)
+- Logbook + Contact form
+- 5 pillars footer (Discipline / Unity / Hold the Line / Earned Never Issued / Strength in Order)
+- Newsletter "Join the Order"
+- **100% E2E tests passing** (19/19 backend, all frontend flows)
 
 ## Pending / Backlog
-- **P1**: Real product photography (currently sticker art is the hero — fine for launch, but mockup tees would lift conversion)
-- **P1**: Push to GitHub repo `mrnickrushing/A-Yard-Apparel.git` (user can do this from Emergent UI or main agent on request)
-- **P1**: Connect real Stripe live key for production sales
-- **P2**: Order tracking / customer accounts (currently guest-checkout only)
-- **P2**: Admin dashboard to manage products/inventory/orders
-- **P2**: Bulk / unit-discount pricing (groups of 5+ for crew orders)
-- **P2**: Discount codes (e.g. ROLLCALL10)
-- **P3**: Real product imagery (apparel mockups), social proof / customer photos
-- **P3**: Wholesale / unit bulk order request form
-
-## Next Tasks
-1. Real garment mockup photos for shirts/hoodies
-2. Push to GitHub repo
-3. Switch to live Stripe key when ready to launch
-4. Add admin order management
+- **P1**: Push to user's repo `mrnickrushing/A-Yard-Apparel.git` (or rename to `AEGIS-Apparel`)
+- **P1**: Real Stripe live key (when launching)
+- **P1**: More CORE products (Tactical Black Hoodie, beanies, etc.)
+- **P2**: Admin order dashboard + redeem-code management UI
+- **P2**: Customer accounts (track legacy unlocks across devices)
+- **P2**: Bulk / unit-order request flow (10+ for crews)
+- **P2**: Sound design on splash gate (optional ambient hum on enter)
+- **P3**: Email transactional templates (order confirmation, petition received)
+- **P3**: Real apparel mockup imagery for hoodies & hats
