@@ -19,7 +19,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 # Bump this to wipe + reseed products & campaigns on next startup
-SEED_VERSION = "aegis-v2-clean"
+SEED_VERSION = "aegis-v3-campaign-badges"
 
 app = FastAPI(title="AEGIS API — Strength in Order")
 api_router = APIRouter(prefix="/api")
@@ -203,7 +203,7 @@ CAMPAIGNS_RAW = [
         "status": "active",
         "tagline": "Mule Creek State Prison. Five Buildings. One Mission.",
         "accent": "#D4AF37",
-        "image": "/aegis/legacy-badge.jpg",
+        "image": "/aegis/a-yard-badge.jpg",
         "bullets": [
             "Level IV high-security yard",
             "Code 2 / Code 3 operational tempo",
@@ -218,7 +218,7 @@ CAMPAIGNS_RAW = [
         "status": "active",
         "tagline": "Mental Tough. Physical Tough. Mission Ready.",
         "accent": "#A23E48",
-        "image": "/aegis/legacy-badge.jpg",
+        "image": "/aegis/eop-badge.jpg",
         "bullets": [
             "Enhanced Outpatient Program operations",
             "Mental Health Team integration",
@@ -233,7 +233,7 @@ CAMPAIGNS_RAW = [
         "status": "active",
         "tagline": "The Standard. Lives Here.",
         "accent": "#2F855A",
-        "image": "/aegis/core-badge.jpg",
+        "image": "/aegis/building-5-badge.jpg",
         "bullets": [
             "Highest standard on the yard",
             "Tier I custody operations",
