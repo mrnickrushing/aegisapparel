@@ -723,6 +723,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serves the built React app (see Dockerfile) so the API and frontend
+# can run as a single deployed service.
+FRONTEND_BUILD_DIR = ROOT_DIR / "build"
+if FRONTEND_BUILD_DIR.is_dir():
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        candidate = FRONTEND_BUILD_DIR / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_BUILD_DIR / "index.html")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

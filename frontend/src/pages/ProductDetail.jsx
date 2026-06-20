@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, ShoppingCart, Truck, Shield, RotateCcw, Lock, KeyRound } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { ChevronLeft, Truck, Shield, RotateCcw, Lock, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { fetchProduct, fetchProducts, redeemLegacy } from "../lib/api";
 import ProductCard from "../components/ProductCard";
@@ -12,11 +12,9 @@ export default function ProductDetail() {
   const [related, setRelated] = useState([]);
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
-  const [qty, setQty] = useState(1);
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
-  const { addItem, legacyUnlocks, addUnlocks } = useCart();
-  const navigate = useNavigate();
+  const { legacyUnlocks, addUnlocks } = useCart();
 
   useEffect(() => {
     setProduct(null);
@@ -49,32 +47,6 @@ export default function ProductDetail() {
     legacyUnlocks.slugs?.includes(product.slug);
   const accent = product.accent || (product.division === "core" ? "#4A7FC1" : "#D4AF37");
   const image = (product.images && product.images[0]) || "";
-
-  const handleAdd = () => {
-    if (isLegacy && !isUnlocked) {
-      toast.error("This item is award-only. Enter your code below.");
-      return;
-    }
-    if (product.sizes?.length > 0 && !size) {
-      toast.error("Select a size");
-      return;
-    }
-    addItem(product, { size, color, quantity: qty });
-    toast.success(`Added: ${product.name}`);
-  };
-
-  const handleBuyNow = () => {
-    if (isLegacy && !isUnlocked) {
-      toast.error("This item is award-only.");
-      return;
-    }
-    if (product.sizes?.length > 0 && !size) {
-      toast.error("Select a size");
-      return;
-    }
-    addItem(product, { size, color, quantity: qty });
-    navigate("/checkout");
-  };
 
   const handleRedeem = async (e) => {
     e.preventDefault();
@@ -211,48 +183,6 @@ export default function ProductDetail() {
                 </div>
               </div>
             )}
-
-            {/* Quantity (only for non-award) */}
-            {!isLegacy && (
-              <div className="mt-6">
-                <div className="label mb-3">Quantity</div>
-                <div className="inline-flex border border-[#1F2330]">
-                  <button
-                    data-testid="qty-minus"
-                    onClick={() => setQty((v) => Math.max(1, v - 1))}
-                    className="px-4 py-2 hover:bg-[#11141C]"
-                  >−</button>
-                  <span className="px-6 py-2 font-mono">{qty}</span>
-                  <button
-                    data-testid="qty-plus"
-                    onClick={() => setQty((v) => v + 1)}
-                    className="px-4 py-2 hover:bg-[#11141C]"
-                  >+</button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <button
-                data-testid="add-to-cart-btn"
-                onClick={handleAdd}
-                disabled={isLegacy && !isUnlocked}
-                className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed text-black py-4 font-mono uppercase tracking-[0.3em] text-sm font-bold inline-flex items-center justify-center gap-2"
-                style={{ background: accent }}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                {isLegacy ? "Redeem Awarded Piece" : "Add to Loadout"}
-              </button>
-              {!isLegacy && (
-                <button
-                  data-testid="buy-now-btn"
-                  onClick={handleBuyNow}
-                  className="flex-1 border border-white hover:bg-white hover:text-[#06080C] py-4 font-mono uppercase tracking-[0.3em] text-sm transition-colors"
-                >
-                  Buy Now
-                </button>
-              )}
-            </div>
 
             {/* Legacy code redeem */}
             {isLegacy && !isUnlocked && (

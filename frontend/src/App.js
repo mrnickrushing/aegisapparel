@@ -5,14 +5,11 @@ import "@/App.css";
 import { CartProvider } from "./context/CartContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import CartDrawer from "./components/CartDrawer";
 import Splash from "./pages/Splash";
 import Home from "./pages/Home";
 import CoreDivision from "./pages/CoreDivision";
 import LegacyDivision from "./pages/LegacyDivision";
 import ProductDetail from "./pages/ProductDetail";
-import Checkout from "./pages/Checkout";
-import Success from "./pages/Success";
 import CampaignList from "./pages/CampaignList";
 import CampaignDetail from "./pages/CampaignDetail";
 import Logbook from "./pages/Logbook";
@@ -26,7 +23,6 @@ function Chrome({ children }) {
       {!isSplash && <Header />}
       <main>{children}</main>
       {!isSplash && <Footer />}
-      <CartDrawer />
     </>
   );
 }
@@ -43,8 +39,6 @@ function App() {
               <Route path="/core" element={<CoreDivision />} />
               <Route path="/legacy" element={<LegacyDivision />} />
               <Route path="/product/:slug" element={<ProductDetail />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/success" element={<Success />} />
               <Route path="/campaigns" element={<CampaignList />} />
               <Route path="/campaigns/:slug" element={<CampaignDetail />} />
               <Route path="/logbook" element={<Logbook />} />

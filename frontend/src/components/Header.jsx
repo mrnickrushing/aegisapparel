@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { ShoppingCart, Menu, X, User } from "lucide-react";
-import { useCart } from "../context/CartContext";
+import { Menu, X, User } from "lucide-react";
 import Logo from "./Logo";
 
 const navLinks = [
@@ -14,7 +13,6 @@ const navLinks = [
 ];
 
 export default function Header() {
-  const { count, setDrawerOpen } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -75,25 +73,6 @@ export default function Header() {
               onClick={() => navigate("/legacy")}
             >
               <User className="w-4 h-4 text-[#A0A6B5]" />
-            </button>
-            <button
-              data-testid="open-cart-btn"
-              onClick={() => setDrawerOpen(true)}
-              className="relative flex items-center gap-2 px-3 py-2 border border-[#1F2330] hover:border-[#D4AF37] transition-colors"
-              aria-label="Open cart"
-            >
-              <ShoppingCart className="w-4 h-4 text-[#A0A6B5]" />
-              <span className="font-mono text-[10px] tracking-[0.25em] text-[#A0A6B5] uppercase">
-                Cart
-              </span>
-              {count > 0 && (
-                <span
-                  data-testid="cart-count-badge"
-                  className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center"
-                >
-                  {count}
-                </span>
-              )}
             </button>
             <button
               data-testid="mobile-menu-toggle"
