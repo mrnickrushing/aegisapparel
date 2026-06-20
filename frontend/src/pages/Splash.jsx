@@ -29,11 +29,18 @@ export default function Splash() {
   return (
     <div
       data-testid="splash-screen"
-      className={`fixed inset-0 z-50 bg-[#06080C] grain dusky-sky dusky-clouds embers transition-opacity duration-500 ${
+      className={`fixed inset-0 z-50 bg-[#06080C] grain dusky-sky dusky-clouds transition-opacity duration-500 ${
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >
-      <div className="absolute inset-0 bg-gradient-radial from-transparent via-[#06080C]/60 to-[#06080C]" />
+      <div className="absolute inset-0 slow-zoom opacity-30">
+        <img
+          src="https://images.unsplash.com/photo-1766521723068-78bf96e98939?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwzfHxwcmlzb24lMjB3YXRjaHRvd2VyJTIwbmlnaHR8ZW58MHx8fHwxNzgxOTgyMzkyfDA&ixlib=rb-4.1.0&q=85"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute inset-0 bg-gradient-radial from-transparent via-[#06080C]/70 to-[#06080C]" />
       <div className="absolute inset-0 scanlines pointer-events-none" />
 
       {/* HUD top bar */}

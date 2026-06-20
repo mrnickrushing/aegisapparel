@@ -331,67 +331,38 @@
         drop-shadow(0 0 60px rgba(139, 95, 191, 0.18));
 }
 
-/* Dusky cloud sky (orange/red sunset) — used as hero backdrop */
+/* Subtle dusky warm accent — used as light hero backdrop (not a takeover) */
 .dusky-sky {
     background:
         radial-gradient(
-            ellipse at 75% 25%,
-            rgba(255, 140, 50, 0.45) 0%,
-            transparent 45%
-        ),
-        radial-gradient(
-            ellipse at 40% 60%,
-            rgba(214, 70, 30, 0.35) 0%,
+            ellipse at 85% 15%,
+            rgba(255, 140, 50, 0.12) 0%,
             transparent 50%
         ),
         radial-gradient(
-            ellipse at 90% 80%,
-            rgba(160, 40, 20, 0.4) 0%,
+            ellipse at 15% 85%,
+            rgba(214, 70, 30, 0.08) 0%,
             transparent 55%
         ),
-        radial-gradient(
-            ellipse at 10% 10%,
-            rgba(80, 30, 10, 0.5) 0%,
-            transparent 50%
-        ),
-        linear-gradient(
-            180deg,
-            #1a0a05 0%,
-            #2a0e08 30%,
-            #0a0805 70%,
-            #06080c 100%
-        );
+        #06080c;
 }
 
-/* Cloud puff overlay using SVG turbulence — gives volumetric depth */
+/* Cloud texture overlay — very subtle */
 .dusky-clouds::before {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.12;
     background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='900' viewBox='0 0 1200 900'%3E%3Cfilter id='c' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.022' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.45 0 0 0 0 0.18 0 0 0 1 0'/%3E%3CfeGaussianBlur stdDeviation='8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='0.85'/%3E%3C/svg%3E");
     background-size: cover;
     background-position: center;
     mix-blend-mode: screen;
 }
 
-/* Smoke / ember particles - subtle */
-.embers::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    background-image:
-        radial-gradient(2px 2px at 12% 20%, rgba(255, 160, 60, 0.5), transparent 60%),
-        radial-gradient(1px 1px at 35% 70%, rgba(255, 120, 40, 0.4), transparent 60%),
-        radial-gradient(2px 2px at 65% 35%, rgba(255, 180, 80, 0.4), transparent 60%),
-        radial-gradient(1px 1px at 82% 60%, rgba(255, 100, 30, 0.5), transparent 60%),
-        radial-gradient(1.5px 1.5px at 50% 15%, rgba(255, 140, 50, 0.45), transparent 60%),
-        radial-gradient(1px 1px at 22% 88%, rgba(255, 90, 20, 0.4), transparent 60%);
-}
+/* Embers removed — was too much. Keep class as no-op for compat. */
+.embers::after { content: none; }
 
 /* Soft beveled divider line */
 .divider-gold {

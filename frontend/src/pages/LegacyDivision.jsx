@@ -57,8 +57,7 @@ export default function LegacyDivision() {
   return (
     <div className="bg-[#06080C] text-white">
       {/* HERO */}
-      <section className="relative border-b border-[#1F2330] overflow-hidden dusky-sky dusky-clouds embers">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#06080C]/30 via-transparent to-[#06080C]/80" />
+      <section className="relative border-b border-[#1F2330] overflow-hidden dusky-sky dusky-clouds">
         <div className="absolute inset-0 warning-stripes opacity-15" />
         <div className="relative max-w-7xl mx-auto px-5 md:px-10 pt-16 pb-12 grid md:grid-cols-[auto_1fr] gap-10 items-center">
           <img
