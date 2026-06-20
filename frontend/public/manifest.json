@@ -1,0 +1,16 @@
+{
+  "short_name": "AEGIS",
+  "name": "AEGIS — Strength in Order",
+  "description": "Tactical apparel forged through adversity and leadership. Heavyweight, mission-built gear for those who hold the line.",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "favicon-32.png", "type": "image/png", "sizes": "32x32" },
+    { "src": "apple-touch-icon.png", "type": "image/png", "sizes": "180x180" },
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any maskable" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#06080C",
+  "background_color": "#06080C"
+}

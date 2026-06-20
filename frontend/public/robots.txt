@@ -1,0 +1,5 @@
+# AEGIS — Strength in Order
+User-agent: *
+Allow: /
+
+Sitemap: https://aegis.rushingtechnologies.com/sitemap.xml
