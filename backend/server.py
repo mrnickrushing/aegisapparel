@@ -26,7 +26,7 @@ db = client[os.environ["DB_NAME"]]
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
 
 # Bump this to wipe + reseed products & campaigns on next startup
-SEED_VERSION = "aegis-v1"
+SEED_VERSION = "aegis-v2-clean"
 
 app = FastAPI(title="AEGIS API — Strength in Order")
 api_router = APIRouter(prefix="/api")
@@ -195,60 +195,46 @@ LEGACY_PRODUCTS_RAW = [
         "description": "The Foundation Piece. Numbered 1–100. Awarded only to the people who built the Order from the ground up. Antique gold finish, AEGIS LEGACY crest, individually serialized on the rim.",
     },
     {
-        "slug": "morale-patch-dumpster-fire",
-        "name": "Dumpster Fire Response Team Patch",
-        "short": "A Yard Custody · Mule Creek.",
+        "slug": "legacy-patch-foundation",
+        "name": "AEGIS Legacy Patch",
+        "short": "Velcro-back. Awarded to the Order.",
         "category": "patch",
         "price": 0.0,
         "is_award_only": True,
-        "images": ["/stickers/sticker1.png"],
-        "accent": "#FF4500",
+        "images": ["/aegis/legacy-badge.jpg"],
+        "accent": "#D4AF37",
         "sizes": ["3in"],
         "colors": [],
         "badge": "EARNED",
-        "description": "The original. Hand-distributed to A Yard officers at Mule Creek who held the line through the worst of it. Velcro back, full-bleed embroidery. Not for sale. Earned.",
+        "description": "The AEGIS LEGACY crest, rendered in full-bleed embroidery on velcro backing. Awarded — never sold — to founders, leaders, and contributors who built the Order.",
     },
     {
-        "slug": "morale-patch-mental-health",
-        "name": "Mental Health Team Patch",
-        "short": "Strength in mind. Support in action.",
-        "category": "patch",
-        "price": 0.0,
-        "is_award_only": True,
-        "images": ["/stickers/sticker2.png"],
-        "accent": "#8B5FBF",
-        "sizes": ["3in"],
-        "colors": [],
-        "badge": "EARNED",
-        "description": "Awarded to the clinicians and Mental Health Team who walk the floors no one else will. Purple-accented, embroidered velcro patch. Issued in person.",
-    },
-    {
-        "slug": "legacy-sticker-a-yard",
-        "name": "A-Yard Legacy Sticker",
-        "short": "The original sticker that started it all.",
+        "slug": "legacy-sticker-aegis",
+        "name": "AEGIS Legacy Sticker",
+        "short": "Numbered run. Hand-distributed.",
         "category": "sticker",
         "price": 0.0,
         "is_award_only": True,
-        "images": ["/stickers/sticker1.png"],
-        "accent": "#FF4500",
+        "images": ["/aegis/legacy-badge.jpg"],
+        "accent": "#D4AF37",
         "sizes": ["3in"],
         "colors": [],
         "badge": "EARNED",
-        "description": "The first sticker. Hand-numbered run from the original A-Yard batch. If you got one, you know.",
+        "description": "Numbered LEGACY sticker run. Hand-distributed at unit ceremonies and milestone moments. If you have one, you earned it.",
     },
     {
-        "slug": "legacy-sticker-mental-health",
-        "name": "Mental Health Legacy Sticker",
-        "short": "From the clinicians of the watch.",
+        "slug": "legacy-sticker-core",
+        "name": "AEGIS Core Sticker",
+        "short": "CORE crest. The Standard.",
         "category": "sticker",
         "price": 0.0,
         "is_award_only": True,
-        "images": ["/stickers/sticker2.png"],
-        "accent": "#8B5FBF",
+        "images": ["/aegis/core-badge.jpg"],
+        "accent": "#6B9DD3",
         "sizes": ["3in"],
         "colors": [],
         "badge": "EARNED",
-        "description": "Numbered from the original Mental Health Team run. Awarded only to clinicians and MHC staff who served the yard.",
+        "description": "The CORE crest in sticker form. Awarded for sustained commitment to the standard. Not for sale.",
     },
 ]
 
@@ -260,7 +246,7 @@ CAMPAIGNS_RAW = [
         "status": "active",
         "tagline": "Mule Creek State Prison. Five Buildings. One Mission.",
         "accent": "#D4AF37",
-        "image": "/stickers/sticker1.png",
+        "image": "/aegis/legacy-badge.jpg",
         "bullets": [
             "Level IV high-security yard",
             "Code 2 / Code 3 operational tempo",
@@ -275,7 +261,7 @@ CAMPAIGNS_RAW = [
         "status": "active",
         "tagline": "Mental Tough. Physical Tough. Mission Ready.",
         "accent": "#A23E48",
-        "image": "/stickers/sticker2.png",
+        "image": "/aegis/legacy-badge.jpg",
         "bullets": [
             "Enhanced Outpatient Program operations",
             "Mental Health Team integration",
@@ -324,18 +310,18 @@ CAMPAIGNS_RAW = [
 
 # Demo redeem codes (user can edit/replace via DB later)
 LEGACY_REDEEM_CODES = {
-    "AYARD-MCSP-2024": {
-        "label": "A-Yard MCSP Founders Cohort",
+    "AEGIS-FOUNDER-001": {
+        "label": "AEGIS Founders Cohort",
         "unlocks": [
-            "morale-patch-dumpster-fire",
-            "legacy-sticker-a-yard",
+            "foundation-piece",
+            "legacy-patch-foundation",
+            "legacy-sticker-aegis",
         ],
     },
-    "MHT-CLINICIAN-2024": {
-        "label": "Mental Health Team — Issued",
+    "CORE-STANDARD-001": {
+        "label": "Core Standard Bearer",
         "unlocks": [
-            "morale-patch-mental-health",
-            "legacy-sticker-mental-health",
+            "legacy-sticker-core",
         ],
     },
     "FOUNDATION-001": {
@@ -346,10 +332,9 @@ LEGACY_REDEEM_CODES = {
         "label": "Order Admin Override",
         "unlocks": [
             "foundation-piece",
-            "morale-patch-dumpster-fire",
-            "morale-patch-mental-health",
-            "legacy-sticker-a-yard",
-            "legacy-sticker-mental-health",
+            "legacy-patch-foundation",
+            "legacy-sticker-aegis",
+            "legacy-sticker-core",
         ],
     },
 }

@@ -16,17 +16,10 @@ export default function Home() {
       {/* ============ HERO ============ */}
       <section
         data-testid="hero-section"
-        className="relative min-h-[92vh] overflow-hidden grain"
+        className="relative min-h-[92vh] overflow-hidden grain dusky-sky dusky-clouds embers"
       >
-        <div className="absolute inset-0 slow-zoom">
-          <img
-            src="https://images.unsplash.com/photo-1768106047915-d5065b18352d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwyfHxncml0dHklMjBzcGFydGFuJTIwaGVsbWV0fGVufDB8fHx8MTc4MTk4MjM5Mnww&ixlib=rb-4.1.0&q=85"
-            alt=""
-            className="w-full h-full object-cover opacity-40"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#06080C] via-[#06080C]/70 to-[#06080C]/40" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#06080C] via-transparent to-[#06080C]/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#06080C] via-[#06080C]/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#06080C]/60 via-transparent to-[#06080C]/40" />
         <div className="absolute inset-0 scanlines pointer-events-none" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-10 pt-24 md:pt-32 pb-20">
