@@ -34,7 +34,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#06080C] via-transparent to-[#06080C]/50" />
         <div className="absolute inset-0 scanlines pointer-events-none" />
 
-        <div className="relative z-10 px-5 md:px-12 pt-24 md:pt-32 pb-20 flex flex-col items-center text-center max-w-5xl mx-auto">
+        <div className="relative z-10 px-5 md:px-12 pt-24 md:pt-32 pb-20 flex flex-col items-center text-center max-w-6xl mx-auto">
           <div
             data-testid="hero-eyebrow"
             className="inline-flex items-center gap-2 border border-[#D4AF37]/40 bg-[#D4AF37]/5 px-3 py-1.5 mb-6"
