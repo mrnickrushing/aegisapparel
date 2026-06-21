@@ -189,15 +189,15 @@ export default function Footer() {
             <div className="label mt-6 mb-3 text-[#D4AF37]">Connect</div>
             <div className="flex gap-3">
               {[
-                { Icon: Instagram, label: "Instagram" },
-                { Icon: Facebook, label: "Facebook" },
-                { Icon: Youtube, label: "YouTube" },
-                { Icon: Mail, label: "Email" },
-              ].map(({ Icon, label }) => (
+                { Icon: Instagram, label: "Instagram", href: "#" },
+                { Icon: Facebook, label: "Facebook", href: "#" },
+                { Icon: Youtube, label: "YouTube", href: "#" },
+                { Icon: Mail, label: "Email", href: "mailto:info@strengthinorder.com" },
+              ].map(({ Icon, label, href }) => (
                 <a
                   key={label}
                   data-testid={`social-${label.toLowerCase()}`}
-                  href="#"
+                  href={href}
                   aria-label={label}
                   className="w-10 h-10 border border-[#1F2330] hover:border-[#D4AF37] hover:text-[#D4AF37] flex items-center justify-center transition-colors text-[#A0A6B5]"
                 >
