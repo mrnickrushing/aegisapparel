@@ -73,13 +73,11 @@ export default function ProductCard({ product, divisionAccent }) {
           {product.name}
         </div>
         <div className="text-[11px] text-[#A0A6B5] mb-3 line-clamp-1">{product.short}</div>
-        <div className="flex items-center justify-between">
-          {isLegacy ? (
+        <div className={`flex items-center ${isLegacy ? "justify-between" : "justify-end"}`}>
+          {isLegacy && (
             <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#D4AF37]">
               Awarded
             </span>
-          ) : (
-            <span className="font-mono text-base font-semibold">${product.price.toFixed(2)}</span>
           )}
           <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#A0A6B5] group-hover:text-white">
             View →

@@ -115,7 +115,7 @@ export default function ProductDetail() {
             </h1>
             <p className="text-[#A0A6B5] mt-3 text-base">{product.short}</p>
 
-            {isLegacy ? (
+            {isLegacy && (
               <div
                 data-testid="product-legacy-status"
                 className={`mt-5 inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] px-3 py-1.5 border ${
@@ -125,13 +125,6 @@ export default function ProductDetail() {
                 }`}
               >
                 {isUnlocked ? "✓ Code Verified · Cleared to redeem" : <><Lock className="w-3 h-3" /> Earned. Never Issued.</>}
-              </div>
-            ) : (
-              <div
-                data-testid="product-price"
-                className="font-mono text-3xl mt-4 font-semibold"
-              >
-                ${product.price.toFixed(2)}
               </div>
             )}
 
