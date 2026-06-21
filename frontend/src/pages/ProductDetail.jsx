@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { fetchProduct, fetchProducts, redeemLegacy } from "../lib/api";
 import ProductCard from "../components/ProductCard";
 import { useCart } from "../context/CartContext";
+import { getProductEditorial } from "../content/storefrontContent";
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -63,6 +64,7 @@ export default function ProductDetail() {
     legacyUnlocks.slugs?.includes(product.slug);
   const accent = product.accent || (product.division === "core" ? "#4A7FC1" : "#D4AF37");
   const image = (product.images && product.images[0]) || "";
+  const editorial = getProductEditorial(product);
 
   const handleRedeem = async (e) => {
     e.preventDefault();
@@ -238,6 +240,73 @@ export default function ProductDetail() {
             </div>
           </div>
         </div>
+
+        <section className="mt-16 grid gap-6 lg:grid-cols-2">
+          <article className="border border-[#1F2330] bg-[#0A0D14] corners p-6 md:p-8">
+            <div className="label mb-3" style={{ color: accent }}>
+              / Fit Notes
+            </div>
+            <p className="text-[#A0A6B5] leading-relaxed">{editorial.fit}</p>
+            <ul className="mt-4 space-y-2">
+              {editorial.sizing.map((note) => (
+                <li key={note} className="flex gap-3 text-sm text-[#A0A6B5]">
+                  <span className="font-mono text-[10px] uppercase tracking-widest mt-1" style={{ color: accent }}>
+                    •
+                  </span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="border border-[#1F2330] bg-[#0A0D14] corners p-6 md:p-8">
+            <div className="label mb-3" style={{ color: accent }}>
+              / What Makes It Different
+            </div>
+            <ul className="space-y-3">
+              {editorial.whatMakesDifferent.map((note) => (
+                <li key={note} className="flex gap-3 text-sm text-[#A0A6B5] leading-relaxed">
+                  <span className="font-mono text-[10px] uppercase tracking-widest mt-1" style={{ color: accent }}>
+                    [x]
+                  </span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="border border-[#1F2330] bg-[#0A0D14] corners p-6 md:p-8">
+            <div className="label mb-3" style={{ color: accent }}>
+              / Care Instructions
+            </div>
+            <ul className="space-y-3">
+              {editorial.care.map((note) => (
+                <li key={note} className="flex gap-3 text-sm text-[#A0A6B5] leading-relaxed">
+                  <span className="font-mono text-[10px] uppercase tracking-widest mt-1" style={{ color: accent }}>
+                    [x]
+                  </span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="border border-[#1F2330] bg-[#0A0D14] corners p-6 md:p-8">
+            <div className="label mb-3" style={{ color: accent }}>
+              / Highlights
+            </div>
+            <ul className="space-y-3">
+              {editorial.highlights.map((note) => (
+                <li key={note} className="flex gap-3 text-sm text-[#A0A6B5] leading-relaxed">
+                  <span className="font-mono text-[10px] uppercase tracking-widest mt-1" style={{ color: accent }}>
+                    [x]
+                  </span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </section>
 
         {related.length > 0 && (
           <div className="mt-24">

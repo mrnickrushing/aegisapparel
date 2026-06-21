@@ -146,8 +146,14 @@ export default function Footer() {
                 ["/core", "Core Division"],
                 ["/legacy", "Legacy Division"],
                 ["/campaigns", "Campaigns"],
+                ["/faq", "FAQ"],
                 ["/logbook", "Logbook"],
                 ["/contact", "Contact"],
+                ["/privacy", "Privacy"],
+                ["/terms", "Terms"],
+                ["/returns", "Returns"],
+                ["/shipping", "Shipping"],
+                ["/accessibility", "Accessibility"],
               ].map(([to, l]) => (
                 <li key={l}>
                   <Link className="text-[#A0A6B5] hover:text-white" to={to}>
@@ -192,7 +198,7 @@ export default function Footer() {
                 { Icon: Instagram, label: "Instagram", href: "#" },
                 { Icon: Facebook, label: "Facebook", href: "#" },
                 { Icon: Youtube, label: "YouTube", href: "#" },
-                { Icon: Mail, label: "Email", href: "mailto:info@strengthinorder.com" },
+                { Icon: Mail, label: "Email", href: "mailto:support@rushingtechnologies.com" },
               ].map(({ Icon, label, href }) => (
                 <a
                   key={label}

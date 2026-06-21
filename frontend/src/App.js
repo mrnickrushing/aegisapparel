@@ -14,6 +14,8 @@ import CampaignList from "./pages/CampaignList";
 import CampaignDetail from "./pages/CampaignDetail";
 import Logbook from "./pages/Logbook";
 import Contact from "./pages/Contact";
+import FAQ from "./pages/FAQ";
+import LegalPage from "./pages/LegalPage";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -52,6 +54,12 @@ function App() {
               <Route path="/campaigns/:slug" element={<CampaignDetail />} />
               <Route path="/logbook" element={<Logbook />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/privacy" element={<LegalPage />} />
+              <Route path="/terms" element={<LegalPage />} />
+              <Route path="/returns" element={<LegalPage />} />
+              <Route path="/shipping" element={<LegalPage />} />
+              <Route path="/accessibility" element={<LegalPage />} />
             </Routes>
           </Chrome>
           <Toaster
