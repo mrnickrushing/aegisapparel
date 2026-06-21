@@ -103,8 +103,8 @@ export default function Footer() {
     if (!email) return;
     setLoading(true);
     try {
-      await subscribeNewsletter(email);
-      toast.success("Locked in. Welcome to the Order.");
+      const data = await subscribeNewsletter(email);
+      toast.success(data?.message || "Locked in. Welcome to the Order.");
       setEmail("");
     } catch {
       toast.error("Could not subscribe. Try again.");
