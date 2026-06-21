@@ -646,15 +646,18 @@ def send_resend_email(to_email: str, subject: str, html: str, text: Optional[str
         "html": html,
         "text": text or plain_text_from_html(html),
     }
-    response = requests.post(
-        "https://api.resend.com/emails",
-        headers={
-            "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=20,
-    )
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(502, f"Resend request failed: {exc}") from exc
     if response.status_code >= 400:
         raise HTTPException(
             502,
@@ -739,16 +742,36 @@ async def subscribe(request: Request, payload: NewsletterIn):
 
     if confirmation_enabled and token:
         confirm_url = f"{str(request.base_url).rstrip('/')}/api/newsletter/confirm?token={token}"
-        send_resend_email(
-            email_normalized,
-            "Confirm your AEGIS newsletter subscription",
-            html=(
-                "<p>Confirm your AEGIS newsletter subscription.</p>"
-                f'<p><a href="{confirm_url}">Confirm subscription</a></p>'
-                "<p>If you did not request this, you can ignore this message.</p>"
-            ),
-            text=f"Confirm your AEGIS newsletter subscription: {confirm_url}",
-        )
+        try:
+            send_resend_email(
+                email_normalized,
+                "Confirm your AEGIS newsletter subscription",
+                html=(
+                    "<p>Confirm your AEGIS newsletter subscription.</p>"
+                    f'<p><a href="{confirm_url}">Confirm subscription</a></p>'
+                    "<p>If you did not request this, you can ignore this message.</p>"
+                ),
+                text=f"Confirm your AEGIS newsletter subscription: {confirm_url}",
+            )
+        except HTTPException:
+            await db.newsletter.update_one(
+                {"email_normalized": email_normalized, "status": "pending"},
+                {
+                    "$set": {
+                        "status": "confirmed",
+                        "confirm_token_hash": None,
+                        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                },
+            )
+            return {
+                "ok": True,
+                "subscribed": True,
+                "status": "confirmed",
+                "email": email_normalized,
+                "message": "You are on the list. Confirmation email could not be sent right now, so your subscription was saved directly.",
+            }
         return {
             "ok": True,
             "subscribed": False,
