@@ -6,11 +6,30 @@ import { fetchCampaign } from "../lib/api";
 export default function CampaignDetail() {
   const { slug } = useParams();
   const [c, setC] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setC(null);
-    fetchCampaign(slug).then(setC).catch(() => {});
+    fetchCampaign(slug)
+      .then((data) => {
+        setC(data);
+        setError("");
+      })
+      .catch((err) => {
+        setError(err?.response?.status === 404 ? "Campaign not found." : "Campaign details are unavailable right now.");
+      });
   }, [slug]);
+
+  const statusLabel =
+    c?.status === "active" ? "Active" : c?.status === "coming_soon" ? "Coming Soon" : "Classified";
+
+  if (error) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-[#A0A6B5] font-mono uppercase tracking-widest px-5 text-center">
+        {error}
+      </div>
+    );
+  }
 
   if (!c) {
     return (
@@ -55,7 +74,7 @@ export default function CampaignDetail() {
             </h1>
             <p className="mt-3 text-[#A0A6B5] text-lg max-w-2xl">{c.tagline}</p>
             <div className="mt-5 flex items-center gap-2 font-mono uppercase text-[10px] tracking-[0.3em] border border-[#2A3040] bg-[#11141C] px-3 py-1.5 inline-flex" style={{ color: accent }}>
-              <ShieldCheck className="w-3 h-3" /> Status: Active
+              <ShieldCheck className="w-3 h-3" /> Status: {statusLabel}
             </div>
           </div>
           <img

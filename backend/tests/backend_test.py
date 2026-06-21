@@ -7,7 +7,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
 API = f"{BASE_URL}/api"
 
 
@@ -38,8 +38,8 @@ def test_products_total_count_9(session):
     slugs = {d["slug"] for d in data}
     expected = {
         "tactical-white-tee", "tactical-black-tee", "core-hoodie-black", "core-hat-flexfit",
-        "foundation-piece", "morale-patch-dumpster-fire", "morale-patch-mental-health",
-        "legacy-sticker-a-yard", "legacy-sticker-mental-health",
+        "foundation-piece", "legacy-patch-foundation", "legacy-sticker-aegis",
+        "legacy-sticker-core", "legacy-patch-order",
     }
     assert expected.issubset(slugs), f"Missing slugs: {expected - slugs}"
 
@@ -109,13 +109,13 @@ def test_campaign_a_yard_detail(session):
 
 # ----- Legacy redeem -----
 def test_legacy_redeem_valid_code(session):
-    r = session.post(f"{API}/legacy/redeem", json={"code": "AYARD-MCSP-2024"})
+    r = session.post(f"{API}/legacy/redeem", json={"code": "BUILT-ON-DISCIPLINE"})
     assert r.status_code == 200, r.text
     data = r.json()
     assert isinstance(data.get("unlocked_product_ids"), list)
-    assert len(data["unlocked_product_ids"]) == 2
-    assert "morale-patch-dumpster-fire" in data["unlocked_slugs"]
-    assert "legacy-sticker-a-yard" in data["unlocked_slugs"]
+    assert len(data["unlocked_product_ids"]) == 5
+    assert "foundation-piece" in data["unlocked_slugs"]
+    assert "legacy-patch-order" in data["unlocked_slugs"]
 
 
 def test_legacy_redeem_case_insensitive(session):

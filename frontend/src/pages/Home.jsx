@@ -6,9 +6,14 @@ import Logo from "../components/Logo";
 
 export default function Home() {
   const [campaigns, setCampaigns] = useState([]);
+  const [campaignsError, setCampaignsError] = useState("");
 
   useEffect(() => {
-    fetchCampaigns().then(setCampaigns).catch(() => {});
+    fetchCampaigns()
+      .then(setCampaigns)
+      .catch(() => {
+        setCampaignsError("Campaigns are unavailable right now.");
+      });
   }, []);
 
   return (
@@ -243,11 +248,17 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {campaigns.map((c) => (
-              <CampaignCard key={c.slug} c={c} />
-            ))}
-          </div>
+          {campaignsError ? (
+            <div className="border border-dashed border-[#1F2330] bg-[#0A0D14] p-8 text-center text-[#A0A6B5]">
+              {campaignsError}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {campaigns.map((c) => (
+                <CampaignCard key={c.slug} c={c} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

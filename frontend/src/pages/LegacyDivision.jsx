@@ -10,6 +10,7 @@ export default function LegacyDivision() {
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
   const { legacyUnlocks, addUnlocks } = useCart();
+  const [error, setError] = useState("");
   const [requestForm, setRequestForm] = useState({
     full_name: "",
     email: "",
@@ -19,7 +20,12 @@ export default function LegacyDivision() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchProducts({ division: "legacy" }).then(setProducts);
+    fetchProducts({ division: "legacy" })
+      .then((data) => {
+        setProducts(data);
+        setError("");
+      })
+      .catch(() => setError("Legacy manifest is unavailable right now."));
   }, []);
 
   const handleRedeem = async (e) => {
@@ -144,7 +150,11 @@ export default function LegacyDivision() {
           </div>
         </div>
 
-        {products.length === 0 ? (
+        {error ? (
+          <div className="border border-dashed border-[#1F2330] p-12 text-center text-[#A0A6B5]">
+            {error}
+          </div>
+        ) : products.length === 0 ? (
           <div className="border border-dashed border-[#1F2330] p-12 text-center text-[#A0A6B5]">
             Manifest loading…
           </div>

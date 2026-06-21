@@ -14,11 +14,17 @@ const VALUES = [
 export default function CoreDivision() {
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const q = { division: "core" };
     if (category) q.category = category;
-    fetchProducts(q).then(setProducts);
+    fetchProducts(q)
+      .then((data) => {
+        setProducts(data);
+        setError("");
+      })
+      .catch(() => setError("Core catalog is unavailable right now."));
   }, [category]);
 
   const cats = ["", "tshirt", "hoodie", "hat"];
@@ -95,7 +101,11 @@ export default function CoreDivision() {
           ))}
         </div>
 
-        {products.length === 0 ? (
+        {error ? (
+          <div className="border border-dashed border-[#1F2330] p-12 text-center text-[#A0A6B5]">
+            {error}
+          </div>
+        ) : products.length === 0 ? (
           <div className="border border-dashed border-[#1F2330] p-12 text-center text-[#A0A6B5]">
             No gear in this category yet. More drops coming.
           </div>

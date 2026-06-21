@@ -14,24 +14,40 @@ export default function ProductDetail() {
   const [color, setColor] = useState("");
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
+  const [error, setError] = useState("");
   const { legacyUnlocks, addUnlocks } = useCart();
 
   useEffect(() => {
     setProduct(null);
-    fetchProduct(slug).then((p) => {
-      setProduct(p);
-      setSize(p.sizes?.[0] || "");
-      setColor(p.colors?.[0] || "");
-    });
+    fetchProduct(slug)
+      .then((p) => {
+        setProduct(p);
+        setSize(p.sizes?.[0] || "");
+        setColor(p.colors?.[0] || "");
+        setError("");
+      })
+      .catch((err) => {
+        setError(err?.response?.status === 404 ? "Product not found." : "Product details are unavailable right now.");
+      });
   }, [slug]);
 
   useEffect(() => {
     if (product?.division) {
-      fetchProducts({ division: product.division }).then((all) => {
-        setRelated(all.filter((p) => p.slug !== product.slug).slice(0, 4));
-      });
+      fetchProducts({ division: product.division })
+        .then((all) => {
+          setRelated(all.filter((p) => p.slug !== product.slug).slice(0, 4));
+        })
+        .catch(() => setRelated([]));
     }
   }, [product]);
+
+  if (error) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-[#A0A6B5] font-mono uppercase tracking-widest px-5 text-center">
+        {error}
+      </div>
+    );
+  }
 
   if (!product) {
     return (

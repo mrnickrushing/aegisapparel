@@ -10,16 +10,38 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime, timezone
 
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "production").strip()
+SENTRY_RELEASE = os.environ.get("SENTRY_RELEASE", "").strip() or None
+SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=SENTRY_ENVIRONMENT,
+        release=SENTRY_RELEASE,
+        integrations=[
+            FastApiIntegration(transaction_style="endpoint"),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+        ],
+        traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+        send_default_pii=False,
+    )
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 # Bump this to wipe + reseed products & campaigns on next startup
-SEED_VERSION = "aegis-v3-campaign-badges"
+SEED_VERSION = "aegis-v4-orders-hidden-and-legacy-fifth-item"
 
 app = FastAPI(title="AEGIS API — Strength in Order")
 api_router = APIRouter(prefix="/api")
@@ -74,6 +96,34 @@ class ContactIn(BaseModel):
     email: str
     subject: Optional[str] = ""
     message: str
+
+
+class OrderItemIn(BaseModel):
+    product_id: str
+    quantity: int = 1
+    size: Optional[str] = None
+    color: Optional[str] = None
+
+
+class OrderBaseIn(BaseModel):
+    items: List[OrderItemIn]
+    origin_url: str
+    customer_name: str
+    customer_email: str
+    address_line1: str
+    city: str
+    state: str
+    zip_code: str
+    address_line2: Optional[str] = ""
+    notes: Optional[str] = ""
+
+
+class ManualOrderIn(OrderBaseIn):
+    pass
+
+
+class CheckoutSessionIn(OrderBaseIn):
+    pass
 
 
 # ---------- SEED DATA ----------
@@ -193,6 +243,20 @@ LEGACY_PRODUCTS_RAW = [
         "badge": "EARNED",
         "description": "The CORE crest in sticker form. Awarded for sustained commitment to the standard. Not for sale.",
     },
+    {
+        "slug": "legacy-patch-order",
+        "name": "AEGIS Order Patch",
+        "short": "Merit patch. Awarded only.",
+        "category": "patch",
+        "price": 0.0,
+        "is_award_only": True,
+        "images": ["/aegis/legacy-badge.jpg"],
+        "accent": "#D4AF37",
+        "sizes": ["3in"],
+        "colors": [],
+        "badge": "EARNED",
+        "description": "The Order patch. Awarded to those who uphold the standard in silence and in sight. Never sold, only granted.",
+    },
 ]
 
 CAMPAIGNS_RAW = [
@@ -292,9 +356,12 @@ LEGACY_REDEEM_CODES = {
             "legacy-patch-foundation",
             "legacy-sticker-aegis",
             "legacy-sticker-core",
+            "legacy-patch-order",
         ],
     },
 }
+
+ORDER_SHIPPING_FEE = 7.99
 
 
 def build_seed_products() -> List[Product]:
@@ -304,6 +371,40 @@ def build_seed_products() -> List[Product]:
     for raw in LEGACY_PRODUCTS_RAW:
         out.append(Product(division="legacy", **raw))
     return out
+
+
+def calculate_order_total(items: List[dict]) -> float:
+    subtotal = 0.0
+    for item in items:
+        subtotal += float(item["price"]) * int(item["quantity"])
+    return round(subtotal + ORDER_SHIPPING_FEE, 2)
+
+
+async def get_order_product_items(items: List[OrderItemIn]) -> List[dict]:
+    product_ids = [item.product_id for item in items]
+    docs = await db.products.find({"id": {"$in": product_ids}}, {"_id": 0}).to_list(100)
+    by_id = {doc["id"]: doc for doc in docs}
+    resolved: List[dict] = []
+    for item in items:
+        product = by_id.get(item.product_id)
+        if not product:
+            raise HTTPException(400, f"Unknown product: {item.product_id}")
+        if product.get("is_award_only"):
+            raise HTTPException(400, "award-only products cannot be purchased")
+        resolved.append({
+            "product_id": product["id"],
+            "slug": product["slug"],
+            "name": product["name"],
+            "price": product["price"],
+            "quantity": max(1, int(item.quantity)),
+            "size": item.size or "",
+            "color": item.color or "",
+        })
+    return resolved
+
+
+def normalize_origin_url(origin_url: str) -> str:
+    return origin_url.rstrip("/")
 
 
 @app.on_event("startup")
@@ -408,6 +509,81 @@ async def legacy_request(payload: LegacyRequestIn):
     }
     await db.legacy_requests.insert_one(rec)
     return {"ok": True, "id": rec["id"]}
+
+
+# ---------- ORDERS / CHECKOUT ----------
+@api_router.post("/orders/manual")
+async def create_manual_order(payload: ManualOrderIn):
+    items = await get_order_product_items(payload.items)
+    order_id = str(uuid.uuid4())
+    total = calculate_order_total(items)
+    rec = {
+        "id": order_id,
+        "order_type": "manual",
+        "payment_status": "awaiting_manual",
+        "items": items,
+        "customer": {
+            "name": payload.customer_name,
+            "email": payload.customer_email,
+            "address_line1": payload.address_line1,
+            "address_line2": payload.address_line2 or "",
+            "city": payload.city,
+            "state": payload.state,
+            "zip_code": payload.zip_code,
+        },
+        "notes": payload.notes or "",
+        "origin_url": payload.origin_url,
+        "total": total,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.orders.insert_one(rec)
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "total": total,
+        "payment_status": rec["payment_status"],
+    }
+
+
+@api_router.get("/orders/{order_id}")
+async def get_order(order_id: str):
+    doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Order not found")
+    return doc
+
+
+@api_router.post("/checkout/session")
+async def create_checkout_session(payload: CheckoutSessionIn):
+    items = await get_order_product_items(payload.items)
+    order_id = str(uuid.uuid4())
+    total = calculate_order_total(items)
+    rec = {
+        "id": order_id,
+        "order_type": "checkout",
+        "payment_status": "pending_checkout",
+        "items": items,
+        "customer": {
+            "name": payload.customer_name,
+            "email": payload.customer_email,
+            "address_line1": payload.address_line1,
+            "address_line2": payload.address_line2 or "",
+            "city": payload.city,
+            "state": payload.state,
+            "zip_code": payload.zip_code,
+        },
+        "notes": payload.notes or "",
+        "origin_url": payload.origin_url,
+        "total": total,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.orders.insert_one(rec)
+    redirect_base = normalize_origin_url(payload.origin_url)
+    return {
+        "session_id": order_id,
+        "url": f"{redirect_base}/success?session_id={order_id}",
+        "total": total,
+    }
 
 
 # ---------- NEWSLETTER / CONTACT ----------
