@@ -37,7 +37,7 @@ export default function Splash() {
         <img
           src="/assets/splash-bg.png"
           alt=""
-          className="h-full w-full object-cover object-center opacity-70"
+          className="h-full w-full object-cover object-center opacity-40"
         />
       </div>
       <div className="absolute inset-0 bg-gradient-radial from-transparent via-[#06080C]/40 to-[#06080C]/85" />
