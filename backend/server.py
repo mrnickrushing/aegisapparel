@@ -1,14 +1,20 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import uuid
+import hmac
+import hashlib
+import asyncio
+import requests
+import jwt
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -39,6 +45,15 @@ if SENTRY_DSN:
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_JWT_SECRET = os.environ.get("ADMIN_JWT_SECRET") or hashlib.sha256(
+    f"aegis-admin::{ADMIN_PASSWORD}".encode()
+).hexdigest()
+ADMIN_TOKEN_TTL_SECONDS = 12 * 60 * 60
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "AEGIS <newsletter@strengthinorder.com>")
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://strengthinorder.com")
 
 # Bump this to wipe + reseed products & campaigns on next startup
 SEED_VERSION = "aegis-v4-orders-hidden-and-legacy-fifth-item"
@@ -96,6 +111,15 @@ class ContactIn(BaseModel):
     email: str
     subject: Optional[str] = ""
     message: str
+
+
+class AdminLoginIn(BaseModel):
+    password: str
+
+
+class NewsletterBlastIn(BaseModel):
+    subject: str
+    body: str
 
 
 class OrderItemIn(BaseModel):
@@ -613,6 +637,131 @@ async def contact(payload: ContactIn):
     }
     await db.contact_messages.insert_one(rec)
     return {"ok": True, "id": rec["id"]}
+
+
+def _unsubscribe_signature(email: str) -> str:
+    return hmac.new(ADMIN_JWT_SECRET.encode(), email.strip().lower().encode(), hashlib.sha256).hexdigest()[:32]
+
+
+@api_router.get("/newsletter/unsubscribe")
+async def newsletter_unsubscribe(email: str, sig: str):
+    if not hmac.compare_digest(sig, _unsubscribe_signature(email)):
+        raise HTTPException(status_code=400, detail="Invalid unsubscribe link")
+    await db.newsletter.delete_many({"email": email})
+    return HTMLResponse(
+        "<html><body style='background:#06080C;color:#fff;font-family:sans-serif;"
+        "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'>"
+        "<p>You have been unsubscribed from AEGIS updates.</p></body></html>"
+    )
+
+
+# ---------- ADMIN ----------
+def _create_admin_token() -> str:
+    payload = {
+        "sub": "admin",
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=ADMIN_TOKEN_TTL_SECONDS),
+    }
+    return jwt.encode(payload, ADMIN_JWT_SECRET, algorithm="HS256")
+
+
+async def require_admin(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing admin token")
+    token = authorization.split(" ", 1)[1]
+    try:
+        jwt.decode(token, ADMIN_JWT_SECRET, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired admin token")
+
+
+@api_router.post("/admin/login")
+async def admin_login(payload: AdminLoginIn):
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=503, detail="Admin login is not configured")
+    if not hmac.compare_digest(payload.password, ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return {"token": _create_admin_token()}
+
+
+@api_router.get("/admin/newsletter", dependencies=[Depends(require_admin)])
+async def admin_list_newsletter():
+    docs = await db.newsletter.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    return {"total": len(docs), "subscribers": docs}
+
+
+@api_router.get("/admin/contacts", dependencies=[Depends(require_admin)])
+async def admin_list_contacts():
+    docs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    return {"total": len(docs), "messages": docs}
+
+
+def _build_newsletter_html(subject: str, body: str, email: str) -> str:
+    paragraphs = "".join(
+        f"<p style='margin:0 0 16px;line-height:1.6;'>{p}</p>"
+        for p in body.split("\n")
+        if p.strip()
+    )
+    unsub_url = f"{PUBLIC_SITE_URL}/api/newsletter/unsubscribe?email={email}&sig={_unsubscribe_signature(email)}"
+    return f"""
+    <div style="background:#06080C;padding:32px;font-family:Arial,Helvetica,sans-serif;color:#E5E7EB;">
+      <div style="max-width:560px;margin:0 auto;">
+        <div style="font-family:Georgia,serif;letter-spacing:4px;font-size:28px;color:#D4AF37;text-transform:uppercase;text-align:center;margin-bottom:24px;">AEGIS</div>
+        <div style="border-top:1px solid #2A3040;border-bottom:1px solid #2A3040;padding:24px 0;">
+          <h1 style="font-size:18px;text-transform:uppercase;letter-spacing:2px;color:#fff;margin:0 0 16px;">{subject}</h1>
+          {paragraphs}
+        </div>
+        <p style="font-size:11px;color:#6E7585;text-align:center;margin-top:24px;text-transform:uppercase;letter-spacing:2px;">
+          Strength in Order &middot; <a href="{unsub_url}" style="color:#6E7585;">Unsubscribe</a>
+        </p>
+      </div>
+    </div>
+    """
+
+
+@api_router.post("/admin/newsletter/send", dependencies=[Depends(require_admin)])
+async def admin_send_newsletter(payload: NewsletterBlastIn):
+    if not RESEND_API_KEY:
+        raise HTTPException(status_code=503, detail="Email sending is not configured")
+
+    subscribers = await db.newsletter.find({}, {"_id": 0, "email": 1}).to_list(10000)
+    emails = [s["email"] for s in subscribers if s.get("email")]
+    if not emails:
+        return {"sent": 0, "failed": 0, "total": 0}
+
+    batch = [
+        {
+            "from": RESEND_FROM_EMAIL,
+            "to": [email],
+            "subject": payload.subject,
+            "html": _build_newsletter_html(payload.subject, payload.body, email),
+        }
+        for email in emails
+    ]
+
+    sent, failed = 0, 0
+    for i in range(0, len(batch), 100):
+        chunk = batch[i : i + 100]
+        try:
+            resp = await asyncio.to_thread(
+                requests.post,
+                "https://api.resend.com/emails/batch",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=chunk,
+                timeout=30,
+            )
+            if resp.status_code < 300:
+                sent += len(chunk)
+            else:
+                failed += len(chunk)
+                logging.error("Resend batch send failed (%s): %s", resp.status_code, resp.text)
+        except Exception:
+            failed += len(chunk)
+            logging.exception("Resend batch send raised an exception")
+
+    return {"sent": sent, "failed": failed, "total": len(emails)}
 
 
 # ---------- APP WIRING ----------

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import "@/App.css";
 import { CartProvider } from "./context/CartContext";
@@ -16,6 +16,8 @@ import Logbook from "./pages/Logbook";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
 import LegalPage from "./pages/LegalPage";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -25,14 +27,27 @@ function ScrollToTop() {
   return null;
 }
 
+// admin.strengthinorder.com points at the same app/service; send its root straight to the dashboard.
+function AdminHostRedirect() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (window.location.hostname.startsWith("admin.") && location.pathname === "/") {
+      navigate("/admin", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+  return null;
+}
+
 function Chrome({ children }) {
   const location = useLocation();
   const isSplash = location.pathname === "/";
+  const isAdmin = location.pathname.startsWith("/admin");
   return (
     <>
-      {!isSplash && <Header />}
+      {!isSplash && !isAdmin && <Header />}
       <main>{children}</main>
-      {!isSplash && <Footer />}
+      {!isSplash && !isAdmin && <Footer />}
     </>
   );
 }
@@ -43,10 +58,13 @@ function App() {
       <BrowserRouter>
         <CartProvider>
           <ScrollToTop />
+          <AdminHostRedirect />
           <Chrome>
             <Routes>
               <Route path="/" element={<Splash />} />
               <Route path="/home" element={<Home />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/core" element={<CoreDivision />} />
               <Route path="/legacy" element={<LegacyDivision />} />
               <Route path="/product/:slug" element={<ProductDetail />} />
