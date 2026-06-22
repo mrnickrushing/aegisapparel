@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Mail, Paperclip, Send, Trash2, Users, MessageSquare } from "lucide-react";
+import { LogOut, Mail, Paperclip, Send, Trash2, Users, MessageSquare, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "../../components/Logo";
 import AdminShell from "./AdminShell";
 import {
+  changeAdminPassword,
   clearAdminToken,
   deleteContactMessage,
   deleteSubscriber,
@@ -19,6 +20,7 @@ const TABS = [
   { id: "roster", label: "Roster" },
   { id: "broadcast", label: "Broadcast" },
   { id: "messages", label: "Messages" },
+  { id: "settings", label: "Settings" },
 ];
 
 function StatCard({ icon: Icon, label, value }) {
@@ -55,6 +57,10 @@ export default function AdminDashboard() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
   const bodyRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -163,6 +169,32 @@ export default function AdminDashboard() {
     } catch (err) {
       if (!handleAuthError(err)) toast.error("Could not delete message.");
     }
+  };
+
+  const submitPasswordChange = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords don't match.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await changeAdminPassword(currentPassword, newPassword);
+      toast.success("Password updated.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      if (!handleAuthError(err)) {
+        const msg = err?.response?.data?.detail || "Could not change password.";
+        toast.error(msg);
+      }
+    }
+    setChangingPassword(false);
   };
 
   return (
@@ -400,6 +432,61 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+              </Panel>
+            </section>
+          )}
+
+          {tab === "settings" && (
+            <section data-testid="admin-settings-tab" className="max-w-md">
+              <Panel title="Change Password" endpoint="POST /api/admin/change-password">
+                <form onSubmit={submitPasswordChange} className="space-y-5">
+                  <div>
+                    <label className="label text-[#6E7585] block mb-2">Current Password</label>
+                    <input
+                      data-testid="admin-current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                      className="w-full bg-[#06080C] border border-[#2A3040] focus:border-[#D4AF37] outline-none px-4 py-3 font-mono text-sm tracking-wider"
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-[#6E7585] block mb-2">New Password</label>
+                    <input
+                      data-testid="admin-new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      className="w-full bg-[#06080C] border border-[#2A3040] focus:border-[#D4AF37] outline-none px-4 py-3 font-mono text-sm tracking-wider"
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-[#6E7585] block mb-2">Confirm New Password</label>
+                    <input
+                      data-testid="admin-confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      className="w-full bg-[#06080C] border border-[#2A3040] focus:border-[#D4AF37] outline-none px-4 py-3 font-mono text-sm tracking-wider"
+                    />
+                  </div>
+                  <button
+                    data-testid="admin-change-password-submit"
+                    disabled={changingPassword}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37] hover:text-black disabled:opacity-50 text-[#D4AF37] px-5 py-4 font-mono uppercase tracking-[0.3em] text-[12px] font-semibold transition-colors"
+                  >
+                    {changingPassword ? "Updating..." : (
+                      <>
+                        Update Password <KeyRound className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </form>
               </Panel>
             </section>
           )}

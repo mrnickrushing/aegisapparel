@@ -15,6 +15,7 @@ import hmac
 import asyncio
 import requests
 import jwt
+import bcrypt
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
@@ -136,6 +137,11 @@ class NewsletterSendIn(BaseModel):
 
 class AdminLoginIn(BaseModel):
     password: str
+
+
+class AdminChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
 
 
 class NewsletterBlastIn(BaseModel):
@@ -922,13 +928,37 @@ async def require_admin(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid or expired admin token")
 
 
+async def get_admin_password_hash() -> Optional[str]:
+    doc = await db.admin_settings.find_one({"id": "admin"}, {"_id": 0})
+    if doc and doc.get("password_hash"):
+        return doc["password_hash"]
+    if ADMIN_PASSWORD:
+        return bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
+    return None
+
+
 @api_router.post("/admin/login")
 async def admin_login(payload: AdminLoginIn):
-    if not ADMIN_PASSWORD:
+    password_hash = await get_admin_password_hash()
+    if not password_hash:
         raise HTTPException(status_code=503, detail="Admin login is not configured")
-    if not hmac.compare_digest(payload.password, ADMIN_PASSWORD):
+    if not bcrypt.checkpw(payload.password.encode(), password_hash.encode()):
         raise HTTPException(status_code=401, detail="Incorrect password")
     return {"token": _create_admin_token()}
+
+
+@api_router.post("/admin/change-password", dependencies=[Depends(require_admin)])
+async def admin_change_password(payload: AdminChangePasswordIn):
+    password_hash = await get_admin_password_hash()
+    if not password_hash or not bcrypt.checkpw(payload.current_password.encode(), password_hash.encode()):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    new_hash = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.admin_settings.update_one(
+        {"id": "admin"},
+        {"$set": {"id": "admin", "password_hash": new_hash, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True}
 
 
 @api_router.get("/admin/newsletter", dependencies=[Depends(require_admin)])

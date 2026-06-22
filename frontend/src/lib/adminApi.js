@@ -43,6 +43,15 @@ export const deleteContactMessage = async (id) => {
   return data;
 };
 
+export const changeAdminPassword = async (currentPassword, newPassword) => {
+  const { data } = await api.post(
+    "/admin/change-password",
+    { current_password: currentPassword, new_password: newPassword },
+    { headers: authHeaders() }
+  );
+  return data;
+};
+
 export const uploadAdminFile = async (file) => {
   const form = new FormData();
   form.append("file", file);
