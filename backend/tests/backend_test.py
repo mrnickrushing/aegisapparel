@@ -3,8 +3,10 @@ Backend API tests for AEGIS — Strength in Order (post-rebrand).
 Covers: products (core/legacy), campaigns, legacy redeem/request, contact,
 newsletter, manual order, Stripe checkout session, award-only enforcement.
 """
+
 import os
 import uuid
+
 import pytest
 import requests
 
@@ -38,9 +40,15 @@ def test_products_total_count_9(session):
     assert "_id" not in data[0]
     slugs = {d["slug"] for d in data}
     expected = {
-        "tactical-white-tee", "tactical-black-tee", "core-hoodie-black", "core-hat-flexfit",
-        "foundation-piece", "legacy-patch-foundation", "legacy-sticker-aegis",
-        "legacy-sticker-core", "legacy-patch-order",
+        "tactical-white-tee",
+        "tactical-black-tee",
+        "core-hoodie-black",
+        "core-hat-flexfit",
+        "foundation-piece",
+        "legacy-patch-foundation",
+        "legacy-sticker-aegis",
+        "legacy-sticker-core",
+        "legacy-patch-order",
     }
     assert expected.issubset(slugs), f"Missing slugs: {expected - slugs}"
 
@@ -132,12 +140,15 @@ def test_legacy_redeem_invalid_code(session):
 
 
 def test_legacy_request_submission(session):
-    r = session.post(f"{API}/legacy/request", json={
-        "full_name": "TEST Officer Smith",
-        "email": "test_legacy@example.com",
-        "unit": "A Yard MCSP",
-        "story": "TEST: Held the line on the worst day.",
-    })
+    r = session.post(
+        f"{API}/legacy/request",
+        json={
+            "full_name": "TEST Officer Smith",
+            "email": "test_legacy@example.com",
+            "unit": "A Yard MCSP",
+            "story": "TEST: Held the line on the worst day.",
+        },
+    )
     assert r.status_code == 200
     data = r.json()
     assert data.get("ok") is True
@@ -146,12 +157,15 @@ def test_legacy_request_submission(session):
 
 # ----- Contact + Newsletter -----
 def test_contact_submission(session):
-    r = session.post(f"{API}/contact", json={
-        "full_name": "TEST Contact",
-        "email": "test_contact@example.com",
-        "subject": "Inquiry",
-        "message": "TEST message body.",
-    })
+    r = session.post(
+        f"{API}/contact",
+        json={
+            "full_name": "TEST Contact",
+            "email": "test_contact@example.com",
+            "subject": "Inquiry",
+            "message": "TEST message body.",
+        },
+    )
     assert r.status_code == 200
     assert r.json().get("ok") is True
 
@@ -178,7 +192,9 @@ def test_manual_order_core_success(session):
     r = session.get(f"{API}/products/tactical-white-tee")
     pid = r.json()["id"]
     payload = {
-        "items": [{"product_id": pid, "quantity": 2, "size": "L", "color": "Bone White"}],
+        "items": [
+            {"product_id": pid, "quantity": 2, "size": "L", "color": "Bone White"}
+        ],
         "origin_url": BASE_URL,
         "customer_name": "TEST Officer",
         "customer_email": "test_officer@example.com",
@@ -211,7 +227,10 @@ def test_award_only_blocked_in_manual_order(session):
         "origin_url": BASE_URL,
         "customer_name": "TEST",
         "customer_email": "t@example.com",
-        "address_line1": "x", "city": "x", "state": "CA", "zip_code": "00000",
+        "address_line1": "x",
+        "city": "x",
+        "state": "CA",
+        "zip_code": "00000",
     }
     r = session.post(f"{API}/orders/manual", json=payload)
     assert r.status_code == 400
@@ -226,7 +245,10 @@ def test_award_only_blocked_in_stripe_session(session):
         "origin_url": BASE_URL,
         "customer_name": "TEST",
         "customer_email": "t@example.com",
-        "address_line1": "x", "city": "x", "state": "CA", "zip_code": "00000",
+        "address_line1": "x",
+        "city": "x",
+        "state": "CA",
+        "zip_code": "00000",
     }
     r = session.post(f"{API}/checkout/session", json=payload)
     assert r.status_code == 400
@@ -243,7 +265,9 @@ def test_stripe_checkout_session_core(session):
         "customer_name": "TEST Stripe",
         "customer_email": "test_stripe@example.com",
         "address_line1": "1 Yard Way",
-        "city": "Ione", "state": "CA", "zip_code": "95640",
+        "city": "Ione",
+        "state": "CA",
+        "zip_code": "95640",
     }
     r = session.post(f"{API}/checkout/session", json=payload)
     assert r.status_code == 200, r.text
