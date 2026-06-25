@@ -98,7 +98,8 @@ UNSUBSCRIBE_PAGE_HTML = (
 # style-src allows 'unsafe-inline' because Radix UI's scroll-lock (used by
 # Dialog/Popover/DropdownMenu) injects <style> tags at runtime that can't be
 # pinned with a hash or nonce on a statically-served SPA. script-src stays
-# strict since that's the directive that actually matters for XSS.
+# strict since that's the directive that actually matters for XSS. img-src
+# allows images.unsplash.com for the /home hero background image.
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
@@ -109,7 +110,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "script-src 'self' https://browser.sentry-cdn.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
-        "img-src 'self' data:",
+        "img-src 'self' data: https://images.unsplash.com",
         "connect-src 'self' https://*.sentry.io",
         "upgrade-insecure-requests",
     ]
