@@ -1,30 +1,38 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Request, Depends, UploadFile, File
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-from email_validator import EmailNotValidError, validate_email
-import os
-import logging
+import asyncio
 import hashlib
+import hmac
+import logging
+import os
 import re
 import secrets
 import uuid
-import hmac
-import asyncio
-import requests
-import jwt
-import bcrypt
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
-from datetime import datetime, timezone, timedelta
+from typing import Dict, List, Optional
 
+import bcrypt
+import jwt
+import requests
 import sentry_sdk
+from dotenv import load_dotenv
+from email_validator import EmailNotValidError, validate_email
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, Field
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
-
+from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -34,9 +42,13 @@ SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "production").strip()
 SENTRY_RELEASE = os.environ.get("SENTRY_RELEASE", "").strip() or None
 SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
-NEWSLETTER_FROM_EMAIL = os.environ.get("NEWSLETTER_FROM_EMAIL", "AEGIS <newsletter@strengthinorder.com>").strip()
+NEWSLETTER_FROM_EMAIL = os.environ.get(
+    "NEWSLETTER_FROM_EMAIL", "AEGIS <newsletter@strengthinorder.com>"
+).strip()
 NEWSLETTER_ADMIN_TOKEN = os.environ.get("NEWSLETTER_ADMIN_TOKEN", "").strip()
-NEWSLETTER_CONFIRMATION_REQUIRED = os.environ.get("NEWSLETTER_CONFIRMATION_REQUIRED", "true").strip().lower() not in {
+NEWSLETTER_CONFIRMATION_REQUIRED = os.environ.get(
+    "NEWSLETTER_CONFIRMATION_REQUIRED", "true"
+).strip().lower() not in {
     "0",
     "false",
     "no",
@@ -61,9 +73,12 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
-ADMIN_JWT_SECRET = os.environ.get("ADMIN_JWT_SECRET") or hashlib.sha256(
-    f"aegis-admin::{ADMIN_PASSWORD}".encode()
-).hexdigest()
+ADMIN_JWT_SECRET = (
+    os.environ.get("ADMIN_JWT_SECRET")
+    or hashlib.pbkdf2_hmac(
+        "sha256", ADMIN_PASSWORD.encode(), b"aegis-admin-jwt-secret", 200_000
+    ).hex()
+)
 ADMIN_TOKEN_TTL_SECONDS = 12 * 60 * 60
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://strengthinorder.com")
 
@@ -79,9 +94,9 @@ class Product(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     slug: str
     name: str
-    short: str                   # short tagline / subtitle
-    category: str                # tshirt, hoodie, hat, sticker, patch, coin, tumbler
-    division: str                # core | legacy
+    short: str  # short tagline / subtitle
+    category: str  # tshirt, hoodie, hat, sticker, patch, coin, tumbler
+    division: str  # core | legacy
     is_award_only: bool = False  # legacy items require unlock code
     price: float
     description: str
@@ -98,7 +113,7 @@ class Campaign(BaseModel):
     code: str
     slug: str
     name: str
-    status: str                  # active | coming_soon | classified
+    status: str  # active | coming_soon | classified
     tagline: str
     description: str
     accent: str
@@ -442,15 +457,17 @@ async def get_order_product_items(items: List[OrderItemIn]) -> List[dict]:
             raise HTTPException(400, f"Unknown product: {item.product_id}")
         if product.get("is_award_only"):
             raise HTTPException(400, "award-only products cannot be purchased")
-        resolved.append({
-            "product_id": product["id"],
-            "slug": product["slug"],
-            "name": product["name"],
-            "price": product["price"],
-            "quantity": max(1, int(item.quantity)),
-            "size": item.size or "",
-            "color": item.color or "",
-        })
+        resolved.append(
+            {
+                "product_id": product["id"],
+                "slug": product["slug"],
+                "name": product["name"],
+                "price": product["price"],
+                "quantity": max(1, int(item.quantity)),
+                "size": item.size or "",
+                "color": item.color or "",
+            }
+        )
     return resolved
 
 
@@ -471,10 +488,17 @@ async def seed_data():
         await db.campaigns.insert_many(campaigns)
         await db.meta.update_one(
             {"key": "seed_version"},
-            {"$set": {"value": SEED_VERSION, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            {
+                "$set": {
+                    "value": SEED_VERSION,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
             upsert=True,
         )
-        logging.info(f"Re-seeded AEGIS data ({len(prods)} products, {len(campaigns)} campaigns)")
+        logging.info(
+            f"Re-seeded AEGIS data ({len(prods)} products, {len(campaigns)} campaigns)"
+        )
 
 
 # ---------- ROUTES ----------
@@ -535,10 +559,14 @@ async def redeem_legacy(payload: RedeemIn):
     code = payload.code.strip().upper()
     entry = LEGACY_REDEEM_CODES.get(code)
     if not entry:
-        raise HTTPException(400, "Invalid code. Codes are case-insensitive but must match exactly.")
+        raise HTTPException(
+            400, "Invalid code. Codes are case-insensitive but must match exactly."
+        )
     # Find product ids by slug
     slugs = entry["unlocks"]
-    docs = await db.products.find({"slug": {"$in": slugs}}, {"_id": 0, "id": 1, "slug": 1, "name": 1}).to_list(50)
+    docs = await db.products.find(
+        {"slug": {"$in": slugs}}, {"_id": 0, "id": 1, "slug": 1, "name": 1}
+    ).to_list(50)
     return {
         "label": entry["label"],
         "unlocked_product_ids": [d["id"] for d in docs],
@@ -661,7 +689,9 @@ def plain_text_from_html(html: str) -> str:
     return text or "AEGIS newsletter"
 
 
-def send_resend_email(to_email: str, subject: str, html: str, text: Optional[str] = None) -> None:
+def send_resend_email(
+    to_email: str, subject: str, html: str, text: Optional[str] = None
+) -> None:
     if not RESEND_API_KEY:
         raise HTTPException(503, "RESEND_API_KEY is not configured")
 
@@ -726,7 +756,11 @@ async def upsert_newsletter_subscriber(
         "status": status,
         "confirm_token_hash": confirm_token_hash,
         "updated_at": now,
-        "confirmed_at": now if status == "confirmed" else existing.get("confirmed_at") if existing else None,
+        "confirmed_at": (
+            now
+            if status == "confirmed"
+            else existing.get("confirmed_at") if existing else None
+        ),
     }
     await db.newsletter.update_one(
         filter_query,
@@ -767,7 +801,9 @@ async def subscribe(request: Request, payload: NewsletterIn):
     )
 
     if confirmation_enabled and token:
-        confirm_url = f"{str(request.base_url).rstrip('/')}/api/newsletter/confirm?token={token}"
+        confirm_url = (
+            f"{str(request.base_url).rstrip('/')}/api/newsletter/confirm?token={token}"
+        )
         try:
             send_resend_email(
                 email_normalized,
@@ -842,7 +878,11 @@ async def confirm_newsletter(token: str):
 
 
 @api_router.get("/newsletter/subscribers")
-async def list_newsletter_subscribers(x_newsletter_admin_token: Optional[str] = Header(default=None, alias="X-Newsletter-Admin-Token")):
+async def list_newsletter_subscribers(
+    x_newsletter_admin_token: Optional[str] = Header(
+        default=None, alias="X-Newsletter-Admin-Token"
+    )
+):
     require_newsletter_admin(x_newsletter_admin_token)
     docs = await db.newsletter.find({}, {"_id": 0}).sort("created_at", 1).to_list(1000)
     return docs
@@ -851,7 +891,9 @@ async def list_newsletter_subscribers(x_newsletter_admin_token: Optional[str] = 
 @api_router.post("/newsletter/send")
 async def send_newsletter(
     payload: NewsletterSendIn,
-    x_newsletter_admin_token: Optional[str] = Header(default=None, alias="X-Newsletter-Admin-Token"),
+    x_newsletter_admin_token: Optional[str] = Header(
+        default=None, alias="X-Newsletter-Admin-Token"
+    ),
 ):
     require_newsletter_admin(x_newsletter_admin_token)
     if not RESEND_API_KEY:
@@ -894,7 +936,9 @@ async def contact(payload: ContactIn):
 
 
 def _unsubscribe_signature(email: str) -> str:
-    return hmac.new(ADMIN_JWT_SECRET.encode(), email.strip().lower().encode(), hashlib.sha256).hexdigest()[:32]
+    return hmac.new(
+        ADMIN_JWT_SECRET.encode(), email.strip().lower().encode(), hashlib.sha256
+    ).hexdigest()[:32]
 
 
 @api_router.get("/newsletter/unsubscribe")
@@ -963,7 +1007,9 @@ async def admin_login(payload: AdminLoginIn):
 @api_router.post("/admin/change-password", dependencies=[Depends(require_admin)])
 async def admin_change_password(payload: AdminChangePasswordIn):
     password_hash = await get_admin_password_hash()
-    if not password_hash or not bcrypt.checkpw(payload.current_password.encode(), password_hash.encode()):
+    if not password_hash or not bcrypt.checkpw(
+        payload.current_password.encode(), password_hash.encode()
+    ):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     new_hash = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()
     await db.admin_settings.update_one(
@@ -983,17 +1029,25 @@ async def admin_change_password(payload: AdminChangePasswordIn):
 
 @api_router.get("/admin/newsletter", dependencies=[Depends(require_admin)])
 async def admin_list_newsletter():
-    docs = await db.newsletter.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    docs = (
+        await db.newsletter.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    )
     return {"total": len(docs), "subscribers": docs}
 
 
 @api_router.get("/admin/contacts", dependencies=[Depends(require_admin)])
 async def admin_list_contacts():
-    docs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    docs = (
+        await db.contact_messages.find({}, {"_id": 0})
+        .sort("created_at", -1)
+        .to_list(10000)
+    )
     return {"total": len(docs), "messages": docs}
 
 
-@api_router.delete("/admin/newsletter/{subscriber_id}", dependencies=[Depends(require_admin)])
+@api_router.delete(
+    "/admin/newsletter/{subscriber_id}", dependencies=[Depends(require_admin)]
+)
 async def admin_delete_subscriber(subscriber_id: str):
     result = await db.newsletter.delete_one({"id": subscriber_id})
     if result.deleted_count == 0:
@@ -1001,7 +1055,9 @@ async def admin_delete_subscriber(subscriber_id: str):
     return {"ok": True}
 
 
-@api_router.delete("/admin/contacts/{message_id}", dependencies=[Depends(require_admin)])
+@api_router.delete(
+    "/admin/contacts/{message_id}", dependencies=[Depends(require_admin)]
+)
 async def admin_delete_contact(message_id: str):
     result = await db.contact_messages.delete_one({"id": message_id})
     if result.deleted_count == 0:
@@ -1060,7 +1116,11 @@ async def admin_send_newsletter(payload: NewsletterBlastIn):
         {"$or": [{"status": "confirmed"}, {"status": {"$exists": False}}]},
         {"_id": 0, "email": 1, "email_normalized": 1},
     ).to_list(10000)
-    emails = [s.get("email_normalized") or s.get("email") for s in subscribers if s.get("email") or s.get("email_normalized")]
+    emails = [
+        s.get("email_normalized") or s.get("email")
+        for s in subscribers
+        if s.get("email") or s.get("email_normalized")
+    ]
     if not emails:
         return {"sent": 0, "failed": 0, "total": 0}
 
@@ -1092,7 +1152,9 @@ async def admin_send_newsletter(payload: NewsletterBlastIn):
                 sent += len(chunk)
             else:
                 failed += len(chunk)
-                logging.error("Resend batch send failed (%s): %s", resp.status_code, resp.text)
+                logging.error(
+                    "Resend batch send failed (%s): %s", resp.status_code, resp.text
+                )
         except Exception:
             failed += len(chunk)
             logging.exception("Resend batch send raised an exception")
@@ -1124,6 +1186,7 @@ if FRONTEND_BUILD_DIR.is_dir():
         if full_path and candidate.is_file():
             return FileResponse(candidate)
         return FileResponse(FRONTEND_BUILD_DIR / "index.html")
+
 
 logging.basicConfig(
     level=logging.INFO,
