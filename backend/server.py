@@ -1,18 +1,33 @@
+import asyncio
 import hashlib
+import hmac
 import logging
 import os
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import bcrypt
+import jwt
 import requests
 import sentry_sdk
 from dotenv import load_dotenv
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -56,6 +71,14 @@ if SENTRY_DSN:
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_JWT_SECRET = (
+    os.environ.get("ADMIN_JWT_SECRET")
+    or hashlib.sha256(f"aegis-admin::{ADMIN_PASSWORD}".encode()).hexdigest()
+)
+ADMIN_TOKEN_TTL_SECONDS = 12 * 60 * 60
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://strengthinorder.com")
 
 # Bump this to wipe + reseed products & campaigns on next startup
 SEED_VERSION = "aegis-v4-orders-hidden-and-legacy-fifth-item"
@@ -123,6 +146,20 @@ class NewsletterSendIn(BaseModel):
     subject: str
     html: str
     text: Optional[str] = None
+
+
+class AdminLoginIn(BaseModel):
+    password: str
+
+
+class AdminChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class NewsletterBlastIn(BaseModel):
+    subject: str
+    body: str
 
 
 class OrderItemIn(BaseModel):
@@ -896,8 +933,236 @@ async def contact(payload: ContactIn):
     return {"ok": True, "id": rec["id"]}
 
 
+def _unsubscribe_signature(email: str) -> str:
+    return hmac.new(
+        ADMIN_JWT_SECRET.encode(), email.strip().lower().encode(), hashlib.sha256
+    ).hexdigest()[:32]
+
+
+@api_router.get("/newsletter/unsubscribe")
+async def newsletter_unsubscribe(email: str, sig: str):
+    if not hmac.compare_digest(sig, _unsubscribe_signature(email)):
+        raise HTTPException(status_code=400, detail="Invalid unsubscribe link")
+    await db.newsletter.delete_many({"email": email})
+    return HTMLResponse(
+        "<html><body style='background:#06080C;color:#fff;font-family:sans-serif;"
+        "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'>"
+        "<p>You have been unsubscribed from AEGIS updates.</p></body></html>"
+    )
+
+
+# ---------- ADMIN ----------
+async def get_admin_token_secret() -> str:
+    doc = await db.admin_settings.find_one({"id": "admin"}, {"_id": 0})
+    if doc and doc.get("token_secret"):
+        return doc["token_secret"]
+    secret = secrets.token_hex(32)
+    await db.admin_settings.update_one(
+        {"id": "admin"}, {"$set": {"id": "admin", "token_secret": secret}}, upsert=True
+    )
+    return secret
+
+
+async def _create_admin_token() -> str:
+    secret = await get_admin_token_secret()
+    payload = {
+        "sub": "admin",
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=ADMIN_TOKEN_TTL_SECONDS),
+    }
+    return jwt.encode(payload, secret, algorithm="HS256")
+
+
+async def require_admin(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing admin token")
+    token = authorization.split(" ", 1)[1]
+    secret = await get_admin_token_secret()
+    try:
+        jwt.decode(token, secret, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired admin token")
+
+
+async def get_admin_password_hash() -> Optional[str]:
+    doc = await db.admin_settings.find_one({"id": "admin"}, {"_id": 0})
+    if doc and doc.get("password_hash"):
+        return doc["password_hash"]
+    if ADMIN_PASSWORD:
+        return bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
+    return None
+
+
+@api_router.post("/admin/login")
+async def admin_login(payload: AdminLoginIn):
+    password_hash = await get_admin_password_hash()
+    if not password_hash:
+        raise HTTPException(status_code=503, detail="Admin login is not configured")
+    if not bcrypt.checkpw(payload.password.encode(), password_hash.encode()):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return {"token": await _create_admin_token()}
+
+
+@api_router.post("/admin/change-password", dependencies=[Depends(require_admin)])
+async def admin_change_password(payload: AdminChangePasswordIn):
+    password_hash = await get_admin_password_hash()
+    if not password_hash or not bcrypt.checkpw(
+        payload.current_password.encode(), password_hash.encode()
+    ):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    new_hash = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.admin_settings.update_one(
+        {"id": "admin"},
+        {
+            "$set": {
+                "id": "admin",
+                "password_hash": new_hash,
+                "token_secret": secrets.token_hex(32),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api_router.get("/admin/newsletter", dependencies=[Depends(require_admin)])
+async def admin_list_newsletter():
+    docs = (
+        await db.newsletter.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    )
+    return {"total": len(docs), "subscribers": docs}
+
+
+@api_router.get("/admin/contacts", dependencies=[Depends(require_admin)])
+async def admin_list_contacts():
+    docs = (
+        await db.contact_messages.find({}, {"_id": 0})
+        .sort("created_at", -1)
+        .to_list(10000)
+    )
+    return {"total": len(docs), "messages": docs}
+
+
+@api_router.delete(
+    "/admin/newsletter/{subscriber_id}", dependencies=[Depends(require_admin)]
+)
+async def admin_delete_subscriber(subscriber_id: str):
+    result = await db.newsletter.delete_one({"id": subscriber_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    return {"ok": True}
+
+
+@api_router.delete(
+    "/admin/contacts/{message_id}", dependencies=[Depends(require_admin)]
+)
+async def admin_delete_contact(message_id: str):
+    result = await db.contact_messages.delete_one({"id": message_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"ok": True}
+
+
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+ALLOWED_UPLOAD_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
+@api_router.post("/admin/uploads", dependencies=[Depends(require_admin)])
+async def admin_upload_file(file: UploadFile = File(...)):
+    ext = ALLOWED_UPLOAD_TYPES.get(file.content_type)
+    if not ext:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+    filename = f"{uuid.uuid4()}{ext}"
+    (UPLOAD_DIR / filename).write_bytes(contents)
+    return {"url": f"{PUBLIC_SITE_URL}/api/uploads/{filename}"}
+
+
+def _build_newsletter_html(subject: str, body: str, email: str) -> str:
+    unsub_url = f"{PUBLIC_SITE_URL}/api/newsletter/unsubscribe?email={email}&sig={_unsubscribe_signature(email)}"
+    return f"""
+    <div style="background:#06080C;padding:32px;font-family:Arial,Helvetica,sans-serif;color:#E5E7EB;">
+      <div style="max-width:560px;margin:0 auto;">
+        <div style="font-family:Georgia,serif;letter-spacing:4px;font-size:28px;color:#D4AF37;text-transform:uppercase;text-align:center;margin-bottom:24px;">AEGIS</div>
+        <div style="border-top:1px solid #2A3040;border-bottom:1px solid #2A3040;padding:24px 0;">
+          <h1 style="font-size:18px;text-transform:uppercase;letter-spacing:2px;color:#fff;margin:0 0 16px;">{subject}</h1>
+          <div style="line-height:1.6;">{body}</div>
+        </div>
+        <p style="font-size:11px;color:#6E7585;text-align:center;margin-top:24px;text-transform:uppercase;letter-spacing:2px;">
+          Strength in Order &middot; <a href="{unsub_url}" style="color:#6E7585;">Unsubscribe</a>
+        </p>
+      </div>
+    </div>
+    """
+
+
+@api_router.post("/admin/newsletter/send", dependencies=[Depends(require_admin)])
+async def admin_send_newsletter(payload: NewsletterBlastIn):
+    if not RESEND_API_KEY:
+        raise HTTPException(status_code=503, detail="Email sending is not configured")
+
+    subscribers = await db.newsletter.find(
+        {"$or": [{"status": "confirmed"}, {"status": {"$exists": False}}]},
+        {"_id": 0, "email": 1, "email_normalized": 1},
+    ).to_list(10000)
+    emails = [
+        s.get("email_normalized") or s.get("email")
+        for s in subscribers
+        if s.get("email") or s.get("email_normalized")
+    ]
+    if not emails:
+        return {"sent": 0, "failed": 0, "total": 0}
+
+    batch = [
+        {
+            "from": NEWSLETTER_FROM_EMAIL,
+            "to": [email],
+            "subject": payload.subject,
+            "html": _build_newsletter_html(payload.subject, payload.body, email),
+        }
+        for email in emails
+    ]
+
+    sent, failed = 0, 0
+    for i in range(0, len(batch), 100):
+        chunk = batch[i : i + 100]
+        try:
+            resp = await asyncio.to_thread(
+                requests.post,
+                "https://api.resend.com/emails/batch",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=chunk,
+                timeout=30,
+            )
+            if resp.status_code < 300:
+                sent += len(chunk)
+            else:
+                failed += len(chunk)
+                logging.error(
+                    "Resend batch send failed (%s): %s", resp.status_code, resp.text
+                )
+        except Exception:
+            failed += len(chunk)
+            logging.exception("Resend batch send raised an exception")
+
+    return {"sent": sent, "failed": failed, "total": len(emails)}
+
+
 # ---------- APP WIRING ----------
 app.include_router(api_router)
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

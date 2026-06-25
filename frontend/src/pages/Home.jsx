@@ -34,7 +34,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#06080C] via-transparent to-[#06080C]/50" />
         <div className="absolute inset-0 scanlines pointer-events-none" />
 
-        <div className="relative z-10 px-5 md:px-12 pt-24 md:pt-32 pb-20">
+        <div className="relative z-10 px-5 md:px-12 pt-24 md:pt-32 pb-20 flex flex-col items-center text-center max-w-6xl mx-auto">
           <div
             data-testid="hero-eyebrow"
             className="inline-flex items-center gap-2 border border-[#D4AF37]/40 bg-[#D4AF37]/5 px-3 py-1.5 mb-6"
@@ -45,8 +45,8 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4 mb-4">
-            <Logo className="w-14 h-14" />
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <Logo className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 shrink-0" />
             <h1
               data-testid="hero-headline"
               className="font-display text-6xl sm:text-7xl md:text-8xl lg:text-[160px] uppercase leading-[0.85] tracking-[0.1em] etched"
@@ -54,7 +54,7 @@ export default function Home() {
               AEGIS
             </h1>
           </div>
-          <div className="flex items-center gap-3 mt-4 mb-8">
+          <div className="flex items-center justify-center gap-3 mt-4 mb-8">
             <div className="h-px w-12 md:w-24 bg-[#D4AF37]" />
             <div className="font-mono uppercase tracking-[0.4em] text-[#D4AF37] text-xs md:text-sm">
               Strength in Order
@@ -75,7 +75,7 @@ export default function Home() {
             and a standard that never lowers.
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row gap-3 max-w-2xl">
+          <div className="mt-10 flex flex-col sm:flex-row gap-3 max-w-2xl w-full mx-auto">
             <Link
               data-testid="hero-enter-core"
               to="/core"
