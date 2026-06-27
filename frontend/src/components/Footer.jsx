@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Mail, Facebook, Youtube, Send } from "lucide-react";
+import { Camera, Mail, Play, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { subscribeNewsletter } from "../lib/api";
 import Logo from "./Logo";
@@ -196,8 +196,8 @@ export default function Footer() {
             <div className="flex gap-3">
               {[
                 { Icon: Camera, label: "Instagram", href: "#" },
-                { Icon: Facebook, label: "Facebook", href: "#" },
-                { Icon: Youtube, label: "YouTube", href: "#" },
+                { Icon: Users, label: "Facebook", href: "#" },
+                { Icon: Play, label: "YouTube", href: "#" },
                 { Icon: Mail, label: "Email", href: "mailto:info@strengthinorder.com" },
               ].map(({ Icon, label, href }) => (
                 <a
