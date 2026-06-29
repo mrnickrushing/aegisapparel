@@ -136,7 +136,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="AEGIS API — Strength in Order")
+app = FastAPI(
+    title="AEGIS API — Strength in Order",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 api_router = APIRouter(prefix="/api")
 
 
@@ -1225,14 +1230,26 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Serves the built React app (see Dockerfile) so the API and frontend
 # can run as a single deployed service.
 FRONTEND_BUILD_DIR = ROOT_DIR / "build"
+
+
+def resolve_frontend_path(full_path: str) -> Path | None:
+    candidate = (FRONTEND_BUILD_DIR / full_path).resolve()
+    try:
+        candidate.relative_to(FRONTEND_BUILD_DIR.resolve())
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
 if FRONTEND_BUILD_DIR.is_dir():
     from fastapi.responses import FileResponse
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_frontend(full_path: str):
-        candidate = FRONTEND_BUILD_DIR / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
+        if full_path:
+            candidate = resolve_frontend_path(full_path)
+            if candidate:
+                return FileResponse(candidate)
         return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 
 
